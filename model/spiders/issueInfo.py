@@ -12,6 +12,26 @@ class ModelinfoSpider(scrapy.Spider):
     allowed_domains = ['apache.org']
     start_urls = ['https://issues.apache.org/jira/projects/CAMEL/issues?startIndex=0']
 
+
+    def parse_href(self, href):
+        """
+        rule out all redundant information and extract real href
+        :param href:    e.g.a href="https:\\github.com\bobpaulin\camel" class="external-link" rel="nofollow"https:\\github.com\bobpaulin\camel\a
+        :return: real_href    e.g.https:\\github.com\bobpaulin\camel
+        """
+        # class_type_row      e.g.class="external-link"
+        class_type_row = re.findall('class=".*?"', href)
+        for i in range(len(class_type_row)):
+            class_type = re.findall('".*?"', class_type_row[i])[0].replace('"', '')
+            # return true url
+            if 'external-link' == class_type:
+                href = re.findall('href=".*?"', href)[0]
+                return href.replace('"', '').replace('href=', '')
+            # return special format
+            elif 'issue-link' == class_type:
+                href = re.findall('data-issue-key=".*?"', href)[0]
+                return href.replace('"', '').replace('data-issue-key=', '')
+
     def parse_item(self, response):
             item = ModelItem()
 
@@ -46,15 +66,14 @@ class ModelinfoSpider(scrapy.Spider):
             # len(comments_xml) == 0 means no comment
             if len(comments_xml) > 0:
                 comments_xml = comments_xml[0].split('twixi-wrap verbose actionContainer')
-                # extract every single comment
                 count = 1
+                # process every single comment
                 for i in comments_xml[1:]:
                     # rule out some redundant labels
                     comments_concise = comments_xml[count].replace('\\u003e', '').replace('\\u003c', '').replace('\\n', '').replace('/span', '').replace('\\\\/a\\', '').replace('\\\\/', '')
                     # parse the comment and extract the name   e.g. ASF GitHub Bot added a comment
                     name_tmp = re.findall('\\\\\\\\ \w.* added a comment ' + '', comments_concise)[0].split(' ')
                     name = []
-                    count += 1
                     for j in name_tmp[1:]:
                         if j == 'added':
                             break
@@ -77,11 +96,13 @@ class ModelinfoSpider(scrapy.Spider):
                     # Step 1: extract the content and rule out some redundant labels
                     comment_content_step1_tmp = comments_xml[count].replace('\\u003e', '').replace('\\u003c', '').replace('\\n', '').replace('/span', '').replace('p\\\\p', '').replace('\\\\\\', '').replace('\\\\/', '').replace('\\\'', '').split('Expand comment')[0]
                     comment_content_step1 = re.findall('action-body flooded\".*twixi-wrap concise actionContainer', comment_content_step1_tmp)[0][21:][:-63]
-
                     # Step 2: some comments have href, so we need to parse them   e.g. a href="https:issues.apache.orgjirasecureViewProfile.jspa?name=davsclaus" class="user-hover" rel="davsclaus"Claus Ibsena
+                    comments1_step2 = re.findall(r'a href=.*?class=.*?\\a[\\ ]', comment_content_step1)
+                    for i in range(len(comments1_step2)):
+                        comment_content_step1 = comment_content_step1.replace(comments1_step2[i], ' ' + self.parse_href(comments1_step2[i]) + ' ')
+                    comment_single = comment_single + '"' + comment_content_step1.replace('\   ', '') + '"'
 
-
-
+                    count += 1
                     comments.append(comment_single)
 
             item['Comments'] = ''.join(comments)
