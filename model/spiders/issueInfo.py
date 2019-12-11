@@ -12,7 +12,6 @@ class ModelinfoSpider(scrapy.Spider):
     allowed_domains = ['apache.org']
     start_urls = ['https://issues.apache.org/jira/projects/CAMEL/issues?startIndex=0']
 
-
     def parse_href(self, href):
         """
         rule out all redundant information and extract real href
