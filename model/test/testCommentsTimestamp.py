@@ -22,3 +22,6 @@ print(datetime_xml)
 datetime_utc = datetime_xml[11:33] + ':' + datetime_xml[33:35]
 timestamp = datetime.datetime.strptime(datetime_utc, "%Y-%m-%dT%H:%M:%S%z").timestamp()
 print(timestamp)
+
+
+response.xpath('string(//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[1]/div[2]/div[2]/div/div/p)').extract()

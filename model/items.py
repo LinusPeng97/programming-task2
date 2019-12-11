@@ -10,6 +10,8 @@ import scrapy
 
 class ModelItem(scrapy.Item):
 
+    Issue = scrapy.Field()
+
     Type = scrapy.Field()
 
     Assignee = scrapy.Field()

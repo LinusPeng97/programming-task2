@@ -11,4 +11,4 @@ class ModelPipeline(object):
 
 
     def close_spider(self, spider):
-        self.filename.close()
+        self.f.close()

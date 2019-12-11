@@ -54,4 +54,5 @@ if len(comments_xml) > 0:
         real_name = ''.join(name)
         comment_single = comment_single + real_name + ':'
         comments.append(comment_single)
+
 print(''.join(comments))

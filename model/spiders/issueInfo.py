@@ -31,13 +31,21 @@ class ModelinfoSpider(scrapy.Spider):
             elif 'issue-link' == class_type:
                 href = re.findall('data-issue-key=".*?"', href)[0]
                 return href.replace('"', '').replace('data-issue-key=', '')
+            elif 'user-hover' == class_type:
+                href = re.findall(r'rel=".*?".*\\a', href)[0]
+                return re.sub('rel=".*?"', '', href).replace('\\a', '')
 
     def parse_item(self, response):
             item = ModelItem()
 
+            item['Issue'] = response.url
+
             item['Type'] = response.xpath('//span[@id="type-val"]/text()').extract()[1].replace(' ', '').replace('\n', '')
 
-            item['Assignee'] = response.xpath("//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div[1]/div[2]/ul[1]/li/dl[1]/dd/span/text()").extract()[1].replace(' ', '').replace('\n', '')
+            if len(response.xpath("//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div[1]/div[2]/ul[1]/li/dl[1]/dd/span/span/text()").extract()) == 0:
+                item['Assignee'] = response.xpath("//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div[1]/div[2]/ul[1]/li/dl[1]/dd/span/text()").extract()[1].replace(' ', '').replace('\n', '')
+            else:
+                item['Assignee'] = response.xpath("//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div[1]/div[2]/ul[1]/li/dl[1]/dd/span/span/text()").extract()[1].replace(' ', '').replace('\n', '')
 
             Created = response.xpath("//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div[2]/div[2]/ul/li/dl[1]/dd/span/time/@datetime").extract()
             item['Created'] = Created
@@ -46,16 +54,11 @@ class ModelinfoSpider(scrapy.Spider):
             utc_timezone = Created[0][22:24]
             item['Created_Epoch'] = datetime.datetime.strptime(utc_former + ':' + utc_timezone, "%Y-%m-%dT%H:%M:%S%z").timestamp()
 
-            description = []
-            description_tmp = []
-            text_tmp = []
-            href_tmp = []
-            for p in response.xpath('//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[1]/div[2]/div[2]/div/div'):
-                text_tmp = p.xpath('p/text()').extract()
-                href_tmp = p.xpath('p/a/text()').extract()
-                description_tmp = text_tmp + href_tmp
-                description = description + description_tmp
-            item['Description'] = ''.join(description).replace('\xa0', '')
+            description  = ''
+            # extract description
+            for p in response.xpath('string(//html/body/div[1]/section/div[2]/div/div/div/div/div[2]/div/div/div/div[1]/div[2]/div[2]/div/div)'):
+                description = description + p.extract()
+            item['Description'] = ''.join(description).replace('\xa0', '').replace('\n', '')
 
             comments = []
             comments_xml = []
@@ -94,20 +97,18 @@ class ModelinfoSpider(scrapy.Spider):
 
                     # parse the comment and extract the content, which is the most difficult procedure in the process of comments.
                     # Step 1: extract the content and rule out some redundant labels
-                    comment_content_step1_tmp = comments_xml[count].replace('\\u003e', '').replace('\\u003c', '').replace('\\n', '').replace('/span', '').replace('p\\\\p', '').replace('\\\\\\', '').replace('\\\\/', '').replace('\\\'', '').split('Expand comment')[0]
+                    comment_content_step1_tmp = comments_xml[count].replace('\\u003e', '').replace('\\u003c', '').replace('\\n', '').replace('/span', '').replace('p\\\\p', '').replace('\\/', '').replace('\\\\\\', '').replace('\\\'', '').split('Expand comment')[0]
                     comment_content_step1 = re.findall('action-body flooded\".*twixi-wrap concise actionContainer', comment_content_step1_tmp)[0][21:][:-63]
                     # Step 2: some comments have href, so we need to parse them   e.g. a href="https:issues.apache.orgjirasecureViewProfile.jspa?name=davsclaus" class="user-hover" rel="davsclaus"Claus Ibsena
                     comments1_step2 = re.findall(r'a href=.*?class=.*?\\a[\\ ]', comment_content_step1)
                     for i in range(len(comments1_step2)):
                         comment_content_step1 = comment_content_step1.replace(comments1_step2[i], ' ' + self.parse_href(comments1_step2[i]) + ' ')
-                    comment_single = comment_single + '"' + comment_content_step1.replace('\   ', '') + '"'
+                    comment_single = comment_single + '"' + comment_content_step1.replace('\   ', '').replace('.\\', '.').replace('\\\\\\\\', '\\\\').replace('\   ', '').replace('br\\\\', '').replace('\\u00A0\\', '').replace('\\u00A0', '').replace('u00A0', '').replace('\\tt', '').replace('\\ tt', '').replace('\\\\ulul', '').replace('\\\\ul', '').replace('\\li', '').replace('class="alternate" type="square"', '').replace('\\p\\ultli', '').replace('\\ins', '')[:-3] + '"'
 
                     count += 1
                     comments.append(comment_single)
 
             item['Comments'] = ''.join(comments)
-
-
             yield item
 
     def parse_url(self, response):

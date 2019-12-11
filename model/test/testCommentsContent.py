@@ -2,7 +2,7 @@ import requests
 import re
 import datetime
 
-url = 'https://issues.apache.org/jira/browse/CAMEL-10597'
+url = 'https://issues.apache.org/jira/browse/CAMEL-8013'
 response = requests.get(url)
 
 comments = []
@@ -31,17 +31,21 @@ def parse_href(href):
         elif 'issue-link' == class_type:
             href = re.findall('data-issue-key=".*?"', href)[0]
             return href.replace('"', '').replace('data-issue-key=', '')
+        elif 'user-hover' == class_type:
+            href = re.findall(r'rel=".*?".*\\a', href)[0]
+            print(re.sub('rel=".*?"', '', href).replace('\\a', ''))
+            return re.sub('rel=".*?"', '', href).replace('\\a', '')
 
 
-comments1_tmp = comments[1].replace('\\u003e', '').replace('\\u003c', '').replace('\\n', '').replace('/span', '').replace('p\\\\p', '').replace('\\/', '').replace('\\\\\\', '').replace('\\\'', '').split('Expand comment')[0]
+comments1_tmp = comments[2].replace('\\u003e', '').replace('\\u003c', '').replace('\\n', '').replace('/span', '').replace('p\\\\p', '').replace('\\/', '').replace('\\\\\\', '').replace('\\\'', '').split('Expand comment')[0]
 # print(comments1_tmp)
 comments1_step1 = re.findall('action-body flooded\".*twixi-wrap concise actionContainer', comments1_tmp)[0][21:][:-63]
-# print(comments1_step1)
+print(comments1_step1)
 comments1_step2 = re.findall(r'a href=.*?class=.*?\\a[\\ ]', comments1_step1)
-# print(comments1_step2)
+print(comments1_step2)
 for i in range(len(comments1_step2)):
     comments1_step1 = comments1_step1.replace(comments1_step2[i], ' ' + parse_href(comments1_step2[i]) + ' ')
-print(comments1_step1.replace('\   ', ''))
+print(comments1_step1.replace('\   ', '').replace('.\\', '.').replace('\\\\\\\\', '\\\\').replace('\   ', '').replace('br\\\\', '').replace('\\u00A0\\', '').replace('\\u00A0', '').replace('u00A0', '').replace('\\tt', '').replace('\\ tt', '').replace('\\\\ulul', '').replace('\\\\ul', '').replace('\\li', '').replace('class="alternate" type="square"tli', '')[:-3])
 
 
 
